@@ -2,836 +2,261 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>South Island Meteorological Agency</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIMA Viewer | Diagnostic Mode</title>
     
-    <!-- GOOGLE ADSENSE (AUTO ADS) -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8263002259646510" crossorigin="anonymous"></script>
-
-    <!-- LEAFLET MAPS & FONTS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- LEAFLET CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
-        /* =========================================
-           1. CSS VARIABLES & THEME
-           ========================================= */
-        :root {
-            --bg-body: #f0f4f8;
-            --surface: #ffffff;
-            --surface-trans: rgba(255, 255, 255, 0.95);
-            --primary: #0f172a;
-            --secondary: #64748b;
-            --accent: #0ea5e9;
-            --border: #e2e8f0;
-            
-            /* Risk Colors */
-            --risk-slight: #eab308;    
-            --risk-enhanced: #f97316;  
-            --risk-high: #ef4444;      
-            --risk-critical: #a855f7;  
-            --risk-special: #3b82f6;   
-            --risk-downpour: #6366f1; 
-            
-            --header-h: 72px;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        /* FORCE FULL SCREEN */
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; background: #000; font-family: 'Inter', sans-serif; overflow: hidden; }
+        
+        #map { 
+            height: 100vh; 
+            width: 100vw; 
+            position: absolute; 
+            top: 0; left: 0; 
+            z-index: 1; 
+            background: #202020; /* Dark grey background so you know if tiles are missing vs map missing */
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg-body); color: var(--primary); line-height: 1.6; height: 100vh; overflow-x: hidden; }
-
-        /* =========================================
-           2. APP VIEWS (MODES)
-           ========================================= */
-        #public-app { display: block; width: 100%; height: 100%; }
-        
-        /* Public Mode */
-        body.mode-public { padding-top: var(--header-h); overflow-y: scroll; }
-
-        /* =========================================
-           3. PUBLIC UI STYLES
-           ========================================= */
-        header { background: var(--surface-trans); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,0,0,0.05); position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; height: var(--header-h); display: flex; align-items: center; transition: top 0.3s; }
-        .nav-wrap { width: 100%; max-width: 1280px; margin: 0 auto; padding: 0 24px; height: 100%; display: flex; align-items: center; justify-content: space-between; }
-        .brand img { height: 42px; width: auto; cursor: pointer; display: block; }
-        
-        .d-menu { display: none; height: 100%; gap: 8px; align-items: center; }
-        @media(min-width: 950px) { .d-menu { display: flex; } }
-        .nav-root-item { position: relative; height: 100%; display: flex; align-items: center; padding: 0 16px; cursor: pointer; font-weight: 600; font-size: 0.95rem; color: var(--secondary); text-decoration: none; white-space: nowrap; }
-        .nav-root-item:hover { color: var(--accent); background: rgba(14, 165, 233, 0.05); }
-        .dropdown-menu { visibility: hidden; opacity: 0; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); min-width: 240px; box-shadow: var(--shadow-lg); border-radius: 0 0 12px 12px; display: flex; flex-direction: column; transform: translateY(10px); transition: all 0.2s; }
-        .nav-root-item:hover .dropdown-menu { visibility: visible; opacity: 1; transform: translateY(0); }
-        .dropdown-link { padding: 12px 20px; text-decoration: none; color: var(--primary); font-size: 0.95rem; border-bottom: 1px solid var(--border); display: block; }
-        .dropdown-link:hover { background: #f8fafc; color: var(--accent); padding-left: 24px; }
-
-        .m-toggle { display: block; background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--primary); padding: 5px; } 
-        @media(min-width: 950px) { .m-toggle { display: none; } }
-        .m-menu { position: fixed; top: var(--header-h); right: 0; width: 300px; height: calc(100vh - var(--header-h)); background: var(--surface); transform: translateX(100%); transition: transform 0.3s; padding: 20px; border-left: 1px solid var(--border); z-index: 999; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; box-shadow: -5px 0 20px rgba(0,0,0,0.1); }
-        .m-menu.open { transform: translateX(0); }
-        .m-link { display: block; padding: 12px; font-weight: 600; color: var(--primary); text-decoration: none; border-radius: 8px; }
-        .m-group-title { font-size: 0.75rem; font-weight: 800; color: var(--secondary); text-transform: uppercase; margin-top: 15px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
-
-        .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
-        .page { display: none; padding-bottom: 50px; }
-        .page.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
-
-        /* Widget & Components */
-        #si-weather-root { background: var(--surface); border-radius: 20px; box-shadow: var(--shadow-lg); overflow: hidden; height: 650px; display: flex; margin-bottom: 40px; border: 1px solid rgba(255,255,255,0.5); }
-        .si-sidebar { width: 400px; background: #fff; border-right: 1px solid var(--border); padding: 30px; display: flex; flex-direction: column; gap: 20px; flex-shrink: 0; overflow-y: auto; }
-        #si-map { flex-grow: 1; height: 100%; background: #e2e8f0; z-index: 1; }
-        .si-search { position: relative; }
-        .si-search input { width: 100%; padding: 12px 12px 12px 40px; border-radius: 10px; border: 1px solid var(--border); background: #f8fafc; font-family: inherit; }
-        .si-results { position: absolute; top: 100%; left: 0; width: 100%; margin-top: 5px; background: white; border: 1px solid var(--border); border-radius: 10px; max-height: 200px; overflow-y: auto; display: none; z-index: 10; box-shadow: var(--shadow-lg); }
-        .si-res-item { padding: 12px; cursor: pointer; font-size: 0.9rem; border-bottom: 1px solid #f1f5f9; }
-        .si-res-item:hover { background: #f0f9ff; color: var(--accent); }
-
-        .ext-tabs { display: flex; background: #f1f5f9; padding: 4px; border-radius: 8px; }
-        .ext-tab { flex: 1; border: none; background: transparent; padding: 8px; font-size: 0.8rem; font-weight: 600; color: var(--secondary); cursor: pointer; border-radius: 6px; }
-        .ext-tab.active { background: white; color: var(--primary); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
-        .ext-row { display: flex; align-items: center; padding: 12px; background: white; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
-        .ext-icon { width: 40px; height: 40px; background: #f0f9ff; border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 15px; }
-        .ext-val { font-weight: 800; font-size: 1.1rem; display: block; }
-        .ext-label { font-size: 0.75rem; color: var(--secondary); text-transform: uppercase; font-weight: 700; }
-        .ext-town { font-weight: 400; color: var(--primary); margin-left: 5px; text-transform: none; }
-
-        .fc-modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); z-index: 2000; display: none; align-items: center; justify-content: center; }
-        .fc-modal { width: 95%; max-width: 800px; max-height: 90vh; background: white; border-radius: 24px; display: flex; flex-direction: column; overflow: hidden; }
-        .fc-head { padding: 20px 30px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .fc-body { padding: 30px; overflow-y: auto; }
-        .fc-detail-row { display: grid; grid-template-columns: 80px 1fr; padding: 15px 0; border-bottom: 1px solid #f1f5f9; gap: 15px; font-size: 0.9rem; }
-        .fc-detail-data { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .fc-data-point { background: #f8fafc; padding: 8px; border-radius: 6px; font-size: 0.85rem; color: #475569; }
-
-        /* PUBLIC CARDS (RISK STYLING) */
-        .feed-item-card { background: white; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 25px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); overflow: hidden; transition: transform 0.2s; }
-        
-        /* Flex Layout for Desktop Maps */
-        .feed-content-wrapper { display: flex; flex-direction: column; gap: 20px; padding: 25px; }
-        @media (min-width: 900px) {
-            .feed-content-wrapper { flex-direction: row; align-items: flex-start; }
-            .feed-img-wrapper { width: 450px; flex-shrink: 0; }
-            .feed-text-wrapper { flex-grow: 1; }
+        /* CONTROLS */
+        .sidebar {
+            position: absolute; top: 20px; left: 20px; width: 260px;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px);
+            padding: 20px; border-radius: 12px; z-index: 1000;
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            display: flex; flex-direction: column; gap: 15px;
         }
-        
-        /* Specific Risk Colors & Styles */
-        .border-Slight { border-left: 8px solid var(--risk-slight); } .bg-Slight { background: var(--risk-slight); color: black; } .color-Slight { color: var(--risk-slight); }
-        .border-Enhanced { border-left: 8px solid var(--risk-enhanced); } .bg-Enhanced { background: var(--risk-enhanced); color: white; } .color-Enhanced { color: var(--risk-enhanced); }
-        .border-High { border-left: 8px solid var(--risk-high); } .bg-High { background: var(--risk-high); color: white; } .color-High { color: var(--risk-high); }
-        .border-Critical { border-left: 8px solid var(--risk-critical); } .bg-Critical { background: var(--risk-critical); color: white; } .color-Critical { color: var(--risk-critical); }
-        .border-Special { border-left: 8px solid var(--risk-special); } .bg-Special { background: var(--risk-special); color: white; } .color-Special { color: var(--risk-special); }
-        .border-Downpours { border-left: 8px solid var(--risk-downpour); } .bg-Downpours { background: var(--risk-downpour); color: white; } .color-Downpours { color: var(--risk-downpour); }
 
-        .feed-head { padding: 15px 25px; background: #f8fafc; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .feed-body { padding: 25px; color: var(--primary); font-size: 1rem; white-space: pre-line; }
-        
-        .map-img { width: 100%; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc; cursor: pointer; display: block; }
-        
-        .badge { display: inline-block; padding: 4px 12px; border-radius: 50px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; margin-bottom: 5px; margin-right: 5px; }
+        .title { font-weight: 800; font-size: 1.1rem; color: #fff; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 5px; }
 
-        .fc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 20px; }
-        .fc-region-box { background: #f8fafc; border: 1px solid var(--border); padding: 15px; border-radius: 8px; }
-        
-        .news-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 30px; }
-        .news-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); cursor: pointer; transition: transform 0.2s; border: 1px solid var(--border); height: 100%; display: flex; flex-direction: column; text-decoration: none; color: inherit; }
-        .news-card:hover { transform: translateY(-5px); border-color: var(--accent); }
-        .nc-thumb { height: 180px; background-size: cover; background-position: center; background-color: #f1f5f9; border-bottom: 1px solid var(--border); }
-        .nc-body { padding: 20px; flex-grow: 1; display: flex; flex-direction: column; }
-        .nc-date { font-size: 0.8rem; color: #94a3b8; margin-bottom: 5px; }
-        .nc-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 10px; color: var(--primary); line-height: 1.4; }
+        .row { display: flex; justify-content: space-between; align-items: center; }
+        .label { font-size: 0.9rem; font-weight: 500; }
 
-        #news-page-container { display: none; padding-bottom: 60px; }
-        #news-page-container.active { display: block; animation: fadeIn 0.3s; }
-        
-        /* === IMPROVED ARTICLE READER STYLES === */
-        .article-wrap { max-width: 800px; margin: 0 auto; background: white; border-radius: 12px; border: 1px solid var(--border); overflow: hidden; padding: 40px; box-shadow: var(--shadow); }
-        .article-content { font-size: 1.1rem; line-height: 1.8; color: #1e293b; font-family: 'Inter', sans-serif; }
-        .article-content p { margin-bottom: 1.5em; }
-        .article-content div { margin-bottom: 1em; }
-        .article-content br { display: block; content: ""; margin-top: 0.8em; } 
-        .article-content img { max-width: 100%; height: auto; border-radius: 8px; margin: 25px auto; display: block; box-shadow: var(--shadow); }
-        .article-content b, .article-content strong { color: var(--primary); font-weight: 700; }
-        .article-content ul, .article-content ol { margin-bottom: 1.5em; padding-left: 30px; }
-        .article-content li { margin-bottom: 0.5em; }
-        .article-content blockquote { border-left: 4px solid var(--accent); padding-left: 20px; margin: 20px 0; color: var(--secondary); font-style: italic; background: #f8fafc; padding: 15px; border-radius: 0 8px 8px 0; }
-        .article-header { border-bottom: 1px solid var(--border); padding-bottom: 25px; margin-bottom: 35px; }
+        /* TOGGLES */
+        .switch { position: relative; width: 46px; height: 26px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #555; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #007AFF; }
+        input:checked + .slider:before { transform: translateX(20px); }
 
-        /* === COMMENT SECTION STYLES === */
-        .comments-section { margin-top: 60px; border-top: 1px solid var(--border); padding-top: 40px; }
-        .comments-section h3 { font-size: 1.5rem; margin-bottom: 25px; font-weight: 800; color: var(--primary); }
-        .c-form { background: #f8fafc; padding: 25px; border-radius: 12px; border: 1px solid var(--border); margin-top: 30px; }
-        .c-input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; font-size: 0.95rem; background: white; }
-        .c-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
-        .btn-comment { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
-        .btn-comment:hover { background: var(--secondary); }
-        .comment-item { padding: 20px 0; border-bottom: 1px solid #f1f5f9; animation: fadeIn 0.3s ease; }
-        .comment-item:last-child { border-bottom: none; }
-        .c-user { font-weight: 700; color: var(--primary); font-size: 0.95rem; margin-bottom: 5px; display:block; }
-        .c-text { color: #475569; line-height: 1.6; display:block; }
-        .c-date { font-size: 0.75rem; color: #94a3b8; margin-top: 8px; display:block; }
-
-        /* === BANNER STYLES === */
-        #alert-banner { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 44px; background: linear-gradient(90deg, #ef4444, #dc2626); color: white; z-index: 1100; text-align: center; line-height: 44px; font-weight: 700; font-size: 0.9rem; white-space: nowrap; overflow-x: auto; padding: 0 10px; }
-        #alert-banner span { cursor: pointer; margin: 0 8px; text-decoration: underline; text-decoration-color: rgba(255,255,255,0.5); text-underline-offset: 4px; }
-        #alert-banner span:hover { text-decoration-color: white; }
-        
-        body.has-alert header { top: 44px; }
-        body.has-alert { padding-top: calc(var(--header-h) + 44px); }
-        body.has-alert .m-menu { top: calc(var(--header-h) + 44px); height: calc(100vh - 116px); }
-
-        .about-section { background: white; padding: 40px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 30px; }
-        .terms-dropdown { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 20px; }
-        .terms-summary { padding: 15px; background: #f1f5f9; cursor: pointer; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
-        .terms-content { padding: 20px; background: white; display: none; line-height: 1.8; font-size: 0.9rem; }
-        .terms-dropdown.open .terms-content { display: block; }
-        .criteria-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .criteria-table th, .criteria-table td { padding: 12px; border: 1px solid var(--border); text-align: left; }
-        .criteria-table th { background: #f8fafc; font-weight: 700; }
-
-        /* Admin Mobile */
-        @media (max-width: 900px) {
-            .main-content { padding: 15px; }
-            .feed-content-wrapper { flex-direction: column; }
-            .feed-img-wrapper { width: 100%; max-width: 100%; }
-            #si-weather-root { flex-direction: column; height: auto; }
-            .si-sidebar { width: 100%; border-right: none; height: auto; }
-            #si-map { display: none; }
-            .feed-img-wrapper { width: 100% !important; max-width: 100% !important; }
+        /* DEBUG CONSOLE */
+        #debug-console {
+            position: absolute; bottom: 20px; left: 20px; z-index: 9999;
+            background: rgba(0,0,0,0.8); color: #00ff00; font-family: monospace;
+            padding: 10px; border-radius: 6px; font-size: 0.75rem;
+            width: 300px; max-height: 150px; overflow-y: auto;
+            pointer-events: none; border: 1px solid #333;
         }
+
+        /* BRANDING */
+        #brand {
+            position: absolute; bottom: 30px; right: 30px; z-index: 999;
+            background: white; padding: 10px 20px; border-radius: 8px;
+            text-align: right; display: none; /* Hidden unless exporting */
+        }
+        .b-logo { font-weight: 800; font-size: 1.5rem; color: #000; }
+        .b-logo span { color: #007AFF; }
+
+        body.exporting #brand { display: block !important; }
+        body.exporting .sidebar, body.exporting #debug-console, body.exporting .leaflet-control-zoom { display: none !important; }
+
+        .btn {
+            background: #007AFF; color: white; border: none; padding: 10px; width: 100%;
+            border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 10px;
+        }
+        .btn:hover { background: #0056b3; }
+
     </style>
 </head>
-<body class="mode-public">
+<body>
 
-    <!-- PUBLIC APPLICATION -->
-    <div id="public-app">
-        <div id="alert-banner"></div>
+    <div id="map"></div>
 
-        <header>
-            <div class="nav-wrap">
-                <div class="brand" onclick="window.location.hash='#/'"><img src="logo.png" alt="SIMA"></div>
-                <nav class="d-menu">
-                    <a href="#/" class="nav-root-item">Home</a>
-                    <div class="nav-root-item">Severe Weather <div class="dropdown-menu"><a href="#/outlook" class="dropdown-link">Significant Weather Outlook</a><a href="#/alerts" class="dropdown-link">Significant Weather Alerts</a></div></div>
-                    <div class="nav-root-item">Forecasts <div class="dropdown-menu"><a href="#/stormcast" class="dropdown-link">StormCast</a><a href="#/snowcast" class="dropdown-link">SnowCast</a><a href="#/drought" class="dropdown-link">DroughtCast</a></div></div>
-                    <a href="#/news" class="nav-root-item">News</a>
-                    <a href="#/radar" class="nav-root-item">Radar</a>
-                    <a href="#/about" class="nav-root-item">About Us</a>
-                </nav>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <button onclick="location.reload()" style="background:white; border:1px solid #e2e8f0; padding:6px 12px; border-radius:20px; cursor:pointer; font-weight:600; color:var(--secondary);">Refresh</button>
-                    <button class="m-toggle" onclick="document.getElementById('mm').classList.toggle('open')">☰</button>
-                </div>
-            </div>
-        </header>
-
-        <div class="m-menu" id="mm">
-            <a href="#/" class="m-link">Home</a>
-            <div class="m-group-title">Severe Weather</div>
-            <a href="#/outlook" class="m-link">Significant Weather Outlook</a>
-            <a href="#/alerts" class="m-link">Significant Weather Alerts</a>
-            <div class="m-group-title">Forecasts</div>
-            <a href="#/stormcast" class="m-link">StormCast</a>
-            <a href="#/snowcast" class="m-link">SnowCast</a>
-            <a href="#/drought" class="m-link">DroughtCast</a>
-            <div class="m-group-title">General</div>
-            <a href="#/news" class="m-link">News</a>
-            <a href="#/radar" class="m-link">Radar</a>
-            <a href="#/about" class="m-link">About Us</a>
+    <div class="sidebar">
+        <div class="title">SIMA Imagery</div>
+        
+        <div class="row">
+            <span class="label">Satellite (Esri)</span>
+            <label class="switch">
+                <input type="checkbox" id="t-sat" checked onchange="toggleLayer('sat')">
+                <span class="slider"></span>
+            </label>
         </div>
 
-        <main class="container">
-            <!-- HOME PAGE -->
-            <section id="page-home" class="page active">
-                <div id="si-weather-root">
-                    <div class="si-sidebar">
-                        <h2 style="font-weight:800; color:var(--primary);">South Island Forecasts</h2>
-                        <p style="color:var(--secondary); margin-bottom:20px;">Real-time observations & 5-day outlooks</p>
-                        <div class="si-search"><input type="text" id="si-town-search" placeholder="Search town..." autocomplete="off"><div id="si-search-results" class="si-results"></div></div>
-                        <div style="margin-top:30px;">
-                            <div class="ext-tabs"><button class="ext-tab active" onclick="siWidget.switchExt('cur', this)">Current Live</button><button class="ext-tab" onclick="siWidget.switchExt('day', this)">Since Midnight</button></div>
-                            <div class="ext-grid" style="margin-top:10px;">
-                                <div class="ext-row"><div class="ext-icon">🌡️</div><div><span class="ext-val" id="ex-max">--</span><span class="ext-label">Hottest <span id="ex-max-loc" class="ext-town"></span></span></div></div>
-                                <div class="ext-row"><div class="ext-icon">❄️</div><div><span class="ext-val" id="ex-min">--</span><span class="ext-label">Coldest <span id="ex-min-loc" class="ext-town"></span></span></div></div>
-                                <div class="ext-row"><div class="ext-icon">💨</div><div><span class="ext-val" id="ex-wind">--</span><span class="ext-label">Gusts <span id="ex-wind-loc" class="ext-town"></span></span></div></div>
-                                <div class="ext-row"><div class="ext-icon">🌧️</div><div><span class="ext-val" id="ex-rain">--</span><span class="ext-label">Rain <span id="ex-rain-loc" class="ext-town"></span></span></div></div>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="si-map"></div>
-                </div>
-                <div id="fc-modal-overlay" class="fc-modal-overlay">
-                    <div class="fc-modal">
-                        <div class="fc-head"><div><h2 id="fm-town" style="margin:0;">Town</h2></div><button onclick="document.getElementById('fc-modal-overlay').style.display='none'" style="background:none; border:none; font-size:2rem; cursor:pointer;">&times;</button></div>
-                        <div class="fc-body" id="fm-content"></div>
-                    </div>
-                </div>
+        <div class="row">
+            <span class="label">Radar (RainViewer)</span>
+            <label class="switch">
+                <input type="checkbox" id="t-radar" onchange="toggleLayer('radar')">
+                <span class="slider"></span>
+            </label>
+        </div>
 
-                <div style="text-align:center; margin:50px 0;"><h1 style="font-weight:800;">Latest Updates</h1></div>
-                <div id="home-news-feed" class="news-grid"></div>
-            </section>
-
-            <!-- ALERTS PAGE -->
-            <section id="page-alerts" class="page">
-                <div style="text-align:center; margin-bottom:40px;">
-                    <h1 style="color:var(--risk-high); font-size:2.5rem; font-weight:800;">Weather Alerts</h1>
-                    <p id="alerts-overview" style="font-size:1.1rem; color:var(--secondary); max-width:800px; margin:0 auto;"></p>
-                </div>
-                <div id="alerts-feed"></div>
-            </section>
-            
-            <!-- STORMCAST PAGE -->
-            <section id="page-storm" class="page">
-                <div style="text-align:center; margin-bottom:40px;">
-                    <h1 style="font-size:2.5rem; font-weight:800; color:var(--primary);">StormCast</h1>
-                    <p style="color:var(--secondary);">Severe Thunderstorm Convective Outlooks</p>
-                </div>
-                <div id="storm-feed"></div>
-                <div style="margin-top:40px; background:white; padding:20px; border-radius:12px; border:1px solid var(--border);">
-                    <h3 style="margin-bottom:15px;">Live Lightning</h3>
-                    <iframe src="https://map.blitzortung.org/#5/-43.5/171.0" style="width:100%; height:500px; border:none;"></iframe>
-                </div>
-            </section>
-            
-            <!-- SNOWCAST PAGE -->
-            <section id="page-snow" class="page">
-                <div style="text-align:center; margin-bottom:40px;">
-                    <h1 id="sc-title" style="font-size:2.5rem; font-weight:800; color:#1e3a8a;">SnowCast</h1>
-                    <p id="sc-overview" style="font-size:1.1rem; color:var(--secondary); max-width:800px; margin:0 auto;"></p>
-                </div>
-                <div id="snow-feed"></div>
-            </section>
-            
-            <!-- OUTLOOK PAGE -->
-            <section id="page-outlook" class="page">
-                <div style="text-align:center; margin-bottom:40px;">
-                    <h1 style="font-size:2.5rem; font-weight:800;">Significant Weather Outlook</h1>
-                    <h2 id="swo-main-title" style="font-size:1.2rem; color:var(--primary);"></h2>
-                    <p id="swo-summary" style="font-size:1.1rem; color:var(--secondary); max-width:800px; margin:10px auto 0;"></p>
-                </div>
-                <div id="outlook-container"></div>
-            </section>
-            
-            <!-- DROUGHTCAST PAGE -->
-            <section id="page-drought" class="page">
-                <div style="text-align:center; margin-bottom:40px;">
-                    <h1 style="font-size:2.5rem; font-weight:800; color:#d97706;">DroughtCast</h1>
-                    <p id="dc-title" style="font-size:1.2rem;"></p>
-                    <p id="dc-summary-text" style="color:var(--secondary); max-width:800px; margin:10px auto 0;"></p>
-                </div>
-                <div id="dc-feed"></div>
-            </section>
-            
-            <!-- NEWS PAGE (Blogger) -->
-            <section id="page-news" class="page">
-                <h1 style="text-align:center; margin-bottom:30px; font-weight:800;">Weather News</h1>
-                <div id="news-feed" class="news-grid"></div>
-            </section>
-            
-            <!-- RADAR PAGE (IMPROVED - WINDY SOUTH ISLAND) -->
-            <section id="page-radar" class="page">
-                <div style="text-align:center; margin-bottom:20px;">
-                    <h1 style="font-weight:800;">South Island Radar</h1>
-                    <p style="color:var(--secondary);">Real-time rain radar and satellite imagery.</p>
-                </div>
-                <div style="height: calc(100vh - 180px); background: #0f172a; border-radius: 12px; overflow: hidden; position: relative; box-shadow: var(--shadow-lg); border: 1px solid var(--border);">
-                    <iframe width="100%" height="100%" src="https://embed.windy.com/embed2.html?lat=-44.5&lon=170.5&detailLat=-43.53&detailLon=172.63&width=650&height=450&zoom=6&level=surface&overlay=radar&product=radar&menu=&message=&marker=&calendar=now&pressure=&type=map&location=coordinates&detail=&metricWind=km%2Fh&metricTemp=%C2%B0C&radarRange=-1" frameborder="0" style="border:none; display:block;"></iframe>
-                </div>
-            </section>
-            
-            <!-- ARTICLE READER -->
-            <section id="page-article-viewer" class="page">
-                <div style="padding:40px 0;">
-                     <button onclick="window.history.back()" style="background:transparent; border:none; cursor:pointer; margin-bottom:20px; font-weight:700; display:flex; align-items:center; gap:5px; color:var(--secondary);">&larr; Back to Updates</button>
-                     <div class="article-wrap">
-                         <div id="reader-content">Loading article...</div>
-                         
-                         <!-- Comments Section Added Here -->
-                         <div id="comments-wrapper" style="display:none;">
-                             <div class="comments-section">
-                                 <h3>Comments</h3>
-                                 <div id="comments-list"></div>
-                                 <div class="c-form">
-                                     <input type="text" id="c-name" class="c-input" placeholder="Your Name">
-                                     <textarea id="c-msg" class="c-input" rows="3" placeholder="Write a comment..."></textarea>
-                                     <button class="btn-comment" id="post-comment-btn">Post Comment</button>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
-                </div>
-            </section>
-            
-            <!-- ABOUT PAGE -->
-            <section id="page-about" class="page">
-                <div class="about-section">
-                    <h2 style="font-size:2rem; font-weight:800; margin-bottom:20px;">About Us</h2>
-                    <p style="margin-bottom:15px;">South Island Meteorological Agency (SIMA) is an independent weather organization dedicated to providing specialized forecasts for the South Island of New Zealand.</p>
-                    <p>We focus on high-impact weather events including severe thunderstorms (StormCast), heavy snow (SnowCast), and drought conditions (DroughtCast). Our team utilizes high-resolution model data and local knowledge to bring you accurate and timely information.</p>
-                </div>
-
-                <div class="about-section">
-                    <h2 style="font-size:1.5rem; font-weight:800; margin-bottom:20px;">Severe Weather Criteria</h2>
-                    <p>Our risk levels are colour-coded to indicate the severity and likelihood of potential weather impacts.</p>
-                    <h3 style="margin-top:20px;">Risk Levels</h3>
-                    <table class="criteria-table">
-                        <tr><th>Level</th><th>Details</th></tr>
-                        <tr style="border-left:8px solid var(--risk-slight)">
-                            <td><strong>Slight Risk (Yellow)</strong></td>
-                            <td>
-                                <strong>Probability:</strong> Less than 30% (but not zero) chance of impactful severe weather.<br>
-                                <strong>Description:</strong> While the probability is low, weather-related impacts are still possible and warrant monitoring.
-                            </td>
-                        </tr>
-                        <tr style="border-left:8px solid var(--risk-enhanced)">
-                            <td><strong>Enhanced Risk (Orange)</strong></td>
-                            <td>
-                                <strong>Probability:</strong> 30–50% chance of impactful severe weather.<br>
-                                <strong>Description:</strong> Conditions suggest an increased likelihood of weather-related impacts. Preparedness is advised.
-                            </td>
-                        </tr>
-                        <tr style="border-left:8px solid var(--risk-high)">
-                            <td><strong>High Risk (Red)</strong></td>
-                            <td>
-                                <strong>Probability:</strong> 50–70% chance of impactful severe weather.<br>
-                                <strong>Description:</strong> A high risk indicates a strong potential for significant weather impacts. Special Weather Statements will likely be issued.
-                            </td>
-                        </tr>
-                        <tr style="border-left:8px solid var(--risk-critical)">
-                            <td><strong>Critical Risk (Purple)</strong></td>
-                            <td>
-                                <strong>Probability:</strong> At least 70% confidence in significant weather impacts.<br>
-                                <strong>Description:</strong> Reserved for the most severe and high-impact weather events where there is a significant risk to life or property.
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-
-                <div class="terms-dropdown" onclick="this.classList.toggle('open')">
-                    <div class="terms-summary">Terms & Conditions <span>&#9662;</span></div>
-                    <div class="terms-content">
-                        <p><strong>Disclaimer:</strong> The forecasts and information provided by SIMA are for informational purposes only. We are not a government agency. While we strive for accuracy, weather prediction is inherently uncertain.</p>
-                        <p><strong>Liability:</strong> SIMA accepts no liability for any loss or damage resulting from reliance on our forecasts. Always consult MetService for official warnings and Civil Defence for emergency instructions.</p>
-                        <p><strong>Copyright:</strong> All content on this site is the property of South Island Meteorological Agency unless stated otherwise.</p>
-                    </div>
-                </div>
-            </section>
-        </main>
+        <button class="btn" onclick="exportMap()">📷 Save Image</button>
     </div>
 
-<script>
-    // --- SHARED API KEYS & CONFIG ---
-    const KEY = '$2a$10$/h3xvps5BAmoU8dJigw8T.qYg3eoESVLwjXbX9aHmb85Y96cExsCe';
-    const IMG_KEY = '11bca15e224ed683c68e78cc0013c205';
-    const BINS = { alerts:'68db095dae596e708f0072be', storm:'68d8cdac43b1c97be9528f9b', snow:'68e0738e43b1c97be9599eb1', sig:'68d8c3c6d0ea881f408d7a5c', drought:'68d9fc07d0ea881f408e8e5b' };
-    const api = (b) => `https://api.jsonbin.io/v3/b/${BINS[b]}`;
-    const getFresh = (u) => u + '?t=' + Date.now();
-    
-    const getNZDate = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Pacific/Auckland' }); 
+    <!-- DEBUGGER -->
+    <div id="debug-console">System Initializing...<br></div>
 
-    // --- GLOBAL BLOGGER CALLBACK (Must be available to JSONP script) ---
-    window.handleBloggerData = function(json) {
-        if(json && json.feed && json.feed.entry) {
-            app.newsCache = json.feed.entry.map(e => {
-                const content = e.content ? e.content.$t : (e.summary ? e.summary.$t : '');
-                let imgUrl = 'logo.png';
-                if (e.media$thumbnail && e.media$thumbnail.url) {
-                    imgUrl = e.media$thumbnail.url.replace(/\/s[0-9]+-c/, '/s0'); // High res
-                } else {
-                    const imgMatch = content.match(/src="([^"]+)"/);
-                    if(imgMatch && imgMatch[1]) imgUrl = imgMatch[1];
-                }
-                return {
-                    title: e.title.$t,
-                    pubDate: e.published.$t,
-                    description: content,
-                    image: imgUrl,
-                    slug: e.title.$t.replace(/[^a-z0-9]+/gi, '-').toLowerCase()
-                };
-            });
-            app.renderNewsFeeds();
-        }
-    };
+    <!-- BRANDING -->
+    <div id="brand">
+        <div class="b-logo">SIMA<span>.co.nz</span></div>
+        <div style="font-size:0.8rem; font-weight:600; color:#555;">Live Imagery</div>
+    </div>
 
-    // ============================================
-    //  PUBLIC APP LOGIC
-    // ============================================
-    const app = {
-        newsCache: [],
-        init: () => {
-            const h = window.location.hash || '#/';
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            let id = 'page-home';
-            
-            if(h.includes('/article/')) { id='page-article-viewer'; app.loadArticleFromHash(h.split('/article/')[1]); }
-            else if(h.includes('alerts')) { id='page-alerts'; app.fetchAlerts(); }
-            else if(h.includes('storm')) { id='page-storm'; app.fetchStorm(); }
-            else if(h.includes('snow')) { id='page-snow'; app.fetchSnow(); }
-            else if(h.includes('about')) { id='page-about'; }
-            else if(h.includes('outlook')) { id='page-outlook'; app.fetchSig(); }
-            else if(h.includes('drought')) { id='page-drought'; app.fetchDrought(); }
-            else if(h.includes('news')) { id='page-news'; app.fetchNews(); }
-            else if(h.includes('radar')) { id='page-radar'; customRadar.init(); }
-            
-            document.getElementById(id).classList.add('active');
-            document.getElementById('mm').classList.remove('open');
-            
-            if(id === 'page-home') { 
-                setTimeout(() => siWidget.init(), 100); 
-                app.fetchNews();
-            }
-            
-            // GLOBAL BANNER CHECK
-            app.checkGlobalStatus();
+    <!-- LEAFLET -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
 
-            window.addEventListener('hashchange', app.init);
-        },
-
-        // --- GLOBAL BANNER LOGIC ---
-        checkGlobalStatus: async () => {
-            const fetchBin = (name) => fetch(getFresh(api(name)+'/latest'), {headers:{'X-Master-Key':KEY}}).then(r=>r.json()).catch(e => ({record:{}}));
-            const [alertRes, stormRes, snowRes, sigRes, droughtRes] = await Promise.all([
-                fetchBin('alerts'), fetchBin('storm'), fetchBin('snow'), fetchBin('sig'), fetchBin('drought')
-            ]);
-
-            let activeLinks = [];
-            
-            // 1. Check Alerts
-            const alerts = (alertRes.record.blocks||[]).filter(b => new Date(b.endTime) > new Date());
-            if(alerts.length > 0) activeLinks.push(`<span onclick="location.hash='#/alerts'">Alerts (${alerts.length})</span>`);
-
-            // 2. Check StormCast
-            const today = getNZDate();
-            const storm = (stormRes.record.outlooks||[]).filter(o => o.validDate >= today || new Date(o.validUntil) > new Date());
-            if(storm.length > 0) activeLinks.push(`<span onclick="location.hash='#/stormcast'">StormCast</span>`);
-
-            // 3. Check SnowCast
-            const snow = (snowRes.record.forecasts||[]).filter(f => new Date(f.validTo) > new Date());
-            if(snow.length > 0) activeLinks.push(`<span onclick="location.hash='#/snowcast'">SnowCast</span>`);
-
-            // 4. Check DroughtCast
-            const drought = (droughtRes.record.alerts||[]).filter(d => new Date(d.endDate) > new Date());
-            if(drought.length > 0) activeLinks.push(`<span onclick="location.hash='#/drought'">DroughtCast</span>`);
-
-            const banner = document.getElementById('alert-banner');
-            if(activeLinks.length > 0) {
-                banner.innerHTML = "⚠️ Active: " + activeLinks.join(" | ");
-                banner.style.display = 'block';
-                document.body.classList.add('has-alert');
-            } else {
-                banner.style.display = 'none';
-                document.body.classList.remove('has-alert');
-            }
-        },
-
-        fetchAlerts: async () => {
-            const r=await fetch(getFresh(api('alerts')+'/latest'),{headers:{'X-Master-Key':KEY}}); const d=await r.json();
-            const active = (d.record.blocks||[]).filter(b => new Date(b.endTime) > new Date());
-            document.getElementById('alerts-overview').innerText = d.record.globalInfo?.overview || "No active warnings.";
-            const c = document.getElementById('alerts-feed');
-            if(active.length){
-                c.innerHTML = active.map(b => `<div class="feed-item-card border-${b.type.split(' ')[0]}"><div class="feed-head"><strong>${b.weatherType}</strong><span class="badge bg-${b.type.split(' ')[0]}">${b.type}</span></div><div class="feed-body"><p style="margin-bottom:10px; font-weight:700;">Area: ${Array.isArray(b.regions)?b.regions.join(', '):b.regions}</p><p>${b.summary}</p><p style="margin-top:10px; font-size:0.85rem; color:var(--secondary);">Valid: ${new Date(b.startTime).toLocaleString()} - ${new Date(b.endTime).toLocaleString()}</p></div></div>`).join('');
-            } else {
-                c.innerHTML='<div style="text-align:center;color:#999;padding:40px;">No active alerts issued.</div>';
-            }
-        },
-        fetchStorm: async () => {
-            const r=await fetch(getFresh(api('storm')+'/latest'),{headers:{'X-Master-Key':KEY}}); const d=await r.json(); const today = getNZDate();
-            const active = (d.record.outlooks||[]).filter(o => o.validDate >= today || new Date(o.validUntil) > new Date());
-            const c = document.getElementById('storm-feed');
-            c.innerHTML = active.length ? active.map(o => `<div class="feed-item-card"><div class="feed-content-wrapper">${o.mapUrl ? `<div class="feed-img-wrapper"><img src="${o.mapUrl}" class="map-img" onclick="window.open(this.src)"></div>` : ''}<div class="feed-text-wrapper"><h2 style="font-size:1.4rem; color:var(--primary); margin-bottom:5px;">${o.title}</h2><div style="margin-bottom:15px; font-size:0.9rem; color:var(--secondary); font-weight:600;">Valid: ${o.validDate || new Date(o.validUntil).toLocaleDateString()}</div><p style="white-space:pre-line; color:var(--primary);">${o.overallDiscussion}</p><div class="fc-grid">${(o.regionalForecasts||[]).map(reg => `<div class="fc-region-box border-${reg.riskLevel}"><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;"><strong>${reg.regionName}</strong><span class="badge bg-${reg.riskLevel}">${reg.riskLevel}</span></div><p style="font-size:0.85rem; color:#64748b; margin-bottom:5px;">Time: ${reg.timeframe || 'Not specified'}</p><div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">${(reg.risks||[]).map(r => `<span class="badge" style="background:#475569; color:white;">${r}</span>`).join('')}</div><p style="font-size:0.9rem; margin-top:8px;">${reg.threats}</p></div>`).join('')}</div></div></div></div>`).join('') : '<p style="text-align:center; color:#94a3b8;">No current StormCast outlooks.</p>';
-        },
-        fetchSnow: async () => {
-            const r=await fetch(getFresh(api('snow')+'/latest'),{headers:{'X-Master-Key':KEY}}); const d=await r.json();
-            const active = (d.record.forecasts||[]).filter(f => new Date(f.validTo) > new Date());
-            document.getElementById('sc-title').innerText = d.record.mainTitle||"SnowCast"; document.getElementById('sc-overview').innerText = d.record.overview||"";
-            document.getElementById('snow-feed').innerHTML = active.map(f => `<div class="feed-item-card border-${f.riskLevel}"><div class="feed-head"><strong>${f.region}</strong><span class="badge bg-${f.riskLevel}">${f.riskLevel}</span></div><div class="feed-body"><p>${f.summary}</p><small style="color:#64748b; display:block; margin-top:10px;">Valid until: ${new Date(f.validTo).toLocaleString()}</small></div></div>`).join('');
-        },
-        fetchSig: async () => {
-            const r=await fetch(getFresh(api('sig')+'/latest'),{headers:{'X-Master-Key':KEY}}); const d=await r.json(); const todayNZ = getNZDate();
-            const active = (d.record.forecasts||[]).filter(f => f.date >= todayNZ).sort((a,b)=>new Date(a.date)-new Date(b.date));
-            document.getElementById('swo-main-title').innerText = d.record.overallTitle || ""; document.getElementById('swo-summary').innerText = d.record.overallSummary || "";
-            document.getElementById('outlook-container').innerHTML = active.length ? active.map(f => {
-                // Modified badge logic: if 'None', hide it.
-                const badge = (f.alertLevel && f.alertLevel !== 'None') ? `<span class="badge bg-${f.alertLevel}" style="margin:10px 0;">${f.alertLevel} Risk</span>` : '';
-                return `<div class="feed-item-card"><div class="feed-content-wrapper">${f.imageUrl ? `<div class="feed-img-wrapper"><img src="${f.imageUrl}" class="map-img" onclick="window.open(this.src)"></div>` : ''}<div class="feed-text-wrapper"><h3>${new Date(f.date).toLocaleDateString(undefined, {weekday:'long', month:'long', day:'numeric'})}</h3>${badge}<p style="white-space:pre-line;">${f.summary}</p></div></div></div>`;
-            }).join('') : '<p style="text-align:center;">No significant weather outlooks issued.</p>';
-        },
-        fetchDrought: async () => {
-            const r=await fetch(getFresh(api('drought')+'/latest'),{headers:{'X-Master-Key':KEY}}); const d=await r.json();
-            document.getElementById('dc-title').innerText = d.record.overview?.title||""; document.getElementById('dc-summary-text').innerText = d.record.overview?.summary||"";
-            document.getElementById('dc-feed').innerHTML = (d.record.alerts||[]).map(a => `<div class="feed-item-card"><div class="feed-head"><strong>${a.region}</strong><span class="badge" style="background:#d97706; color:white;">${a.severity}</span></div><div class="feed-body"><p>${a.summary}</p><p style="margin-top:10px; font-weight:700; font-size:0.9rem;">Rain Potential: ${a.rainPotential}</p></div></div>`).join('');
-        },
-        fetchNews: () => {
-            if(app.newsCache.length > 0) {
-                app.renderNewsFeeds();
-                return;
-            }
-            const s = document.createElement('script');
-            s.src = 'https://southislandmet.blogspot.com/feeds/posts/default?alt=json-in-script&callback=handleBloggerData';
-            document.body.appendChild(s);
-        },
-        renderNewsFeeds: () => {
-            const mkItem = (i) => `
-                <a href="#/article/${i.slug}" class="news-card">
-                    <div class="nc-thumb" style="background-image:url('${i.image}')"></div>
-                    <div class="nc-body">
-                        <div class="nc-title">${i.title}</div>
-                        <div class="nc-date">${new Date(i.pubDate).toLocaleDateString()}</div>
-                    </div>
-                </a>`;
-            
-            const homeFeed = document.getElementById('home-news-feed');
-            if(homeFeed) homeFeed.innerHTML = app.newsCache.slice(0,3).map(mkItem).join('');
-
-            const fullFeed = document.getElementById('news-feed');
-            if(fullFeed) fullFeed.innerHTML = app.newsCache.map(mkItem).join('');
-        },
-        loadArticleFromHash: (slug) => {
-            if(!app.newsCache.length) {
-                const s = document.createElement('script');
-                s.src = 'https://southislandmet.blogspot.com/feeds/posts/default?alt=json-in-script&callback=handleBloggerData';
-                document.body.appendChild(s);
-                
-                const check = setInterval(() => {
-                    if(app.newsCache.length) {
-                        clearInterval(check);
-                        app.renderArticle(slug);
-                    }
-                }, 500);
-            } else {
-                app.renderArticle(slug);
-            }
-        },
-        renderArticle: (slug) => {
-            const item = app.newsCache.find(i => i.slug === slug);
-            const viewer = document.getElementById('reader-content');
-            const wrapper = document.getElementById('comments-wrapper');
-            const btn = document.getElementById('post-comment-btn');
-
-            if(item) {
-                viewer.innerHTML = `
-                    <div class="article-header">
-                        <h1 style="font-weight:800; font-size:2rem; line-height:1.2; margin-bottom:10px; color:var(--primary);">${item.title}</h1>
-                        <div style="color:var(--secondary);">Posted: ${new Date(item.pubDate).toLocaleString()}</div>
-                    </div>
-                    <div class="article-content">${item.description}</div>`;
-                
-                wrapper.style.display = 'block';
-                app.loadComments(slug);
-                
-                const newBtn = btn.cloneNode(true);
-                btn.parentNode.replaceChild(newBtn, btn);
-                newBtn.addEventListener('click', () => app.postComment(slug));
-
-            } else {
-                viewer.innerHTML = `<p>Article not found.</p>`;
-                wrapper.style.display = 'none';
-            }
-        },
-        loadComments: (slug) => {
-            const list = document.getElementById('comments-list');
-            const allComments = JSON.parse(localStorage.getItem('sima_comments') || '{}');
-            const comments = allComments[slug] || [];
-            
-            if(comments.length === 0) {
-                list.innerHTML = '<p style="color:#94a3b8; font-style:italic;">No comments yet. Be the first!</p>';
-            } else {
-                list.innerHTML = comments.map(c => `
-                    <div class="comment-item">
-                        <span class="c-user">${c.name}</span>
-                        <span class="c-text">${c.msg}</span>
-                        <span class="c-date">${new Date(c.date).toLocaleString()}</span>
-                    </div>
-                `).join('');
-            }
-        },
-        postComment: (slug) => {
-            const nameInp = document.getElementById('c-name');
-            const msgInp = document.getElementById('c-msg');
-            
-            if(!nameInp.value.trim() || !msgInp.value.trim()) {
-                alert("Please enter both a name and a comment.");
-                return;
-            }
-            
-            const newComment = {
-                name: nameInp.value.trim(),
-                msg: msgInp.value.trim(),
-                date: new Date().toISOString()
-            };
-            
-            const allComments = JSON.parse(localStorage.getItem('sima_comments') || '{}');
-            if(!allComments[slug]) allComments[slug] = [];
-            allComments[slug].push(newComment);
-            
-            localStorage.setItem('sima_comments', JSON.stringify(allComments));
-            
-            nameInp.value = '';
-            msgInp.value = '';
-            app.loadComments(slug);
-        }
-    };
-
-    // CUSTOM NATIVE RADAR (LEAFLET + RAINVIEWER)
-    const customRadar = (function() {
-        let map, layerControl, animationTimer = null;
-        let radarLayers = {}; 
-        let availableTimestamps = [];
-        let currentTimestampIndex = 0;
-
-        function init() {
-            if(!document.getElementById('radar-map-instance')) return;
-            if(map) { setTimeout(()=>map.invalidateSize(), 200); return; }
-
-            map = L.map('radar-map-instance', {
-                center: [-44.0, 170.5],
-                zoom: 6,
-                zoomControl: false,
-                maxZoom: 12,
-                minZoom: 5
-            });
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OSM &copy; CartoDB' }).addTo(map);
-            L.control.zoom({position: 'topright'}).addTo(map);
-
-            fetch('https://api.rainviewer.com/public/weather-maps.json').then(res => res.json()).then(data => {
-                if(data.radar && data.radar.past) {
-                    availableTimestamps = data.radar.past; 
-                    setupLayers();
-                }
-            });
+    <script>
+        // LOGGING FUNCTION
+        function log(msg) {
+            var c = document.getElementById('debug-console');
+            var t = new Date().toLocaleTimeString();
+            c.innerHTML += `[${t}] ${msg}<br>`;
+            c.scrollTop = c.scrollHeight;
+            console.log(msg);
         }
 
-        function setupLayers() {
-            Object.values(radarLayers).forEach(l => map.removeLayer(l));
-            radarLayers = {};
-            currentTimestampIndex = availableTimestamps.length - 1;
-            showFrame(currentTimestampIndex);
-            const s = document.getElementById('radar-slider');
-            s.min = 0;
-            s.max = availableTimestamps.length - 1;
-            s.value = currentTimestampIndex;
-        }
+        var map;
+        var layers = {};
 
-        function showFrame(index) {
-            const ts = availableTimestamps[index];
-            if(!ts) return;
-            const date = new Date(ts * 1000);
-            document.getElementById('radar-time-display').innerText = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-            Object.keys(radarLayers).forEach(k => {
-                if(parseInt(k) !== ts) { if(map.hasLayer(radarLayers[k])) map.removeLayer(radarLayers[k]); }
-            });
-            if(!radarLayers[ts]) {
-                radarLayers[ts] = L.tileLayer(`https://tile.cache.rainviewer.com/v2/radar/${ts}/256/{z}/{x}/{y}/2/1_1.png`, { opacity: 0.7, zIndex: 100 });
-            }
-            if(!map.hasLayer(radarLayers[ts])) { radarLayers[ts].addTo(map); }
-        }
-
-        function seek(val) { stop(); currentTimestampIndex = parseInt(val); showFrame(currentTimestampIndex); }
-        function toggleAnimation() { if(animationTimer) stop(); else play(); }
-        function play() {
-            document.getElementById('radar-play-btn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-            animationTimer = setInterval(() => {
-                currentTimestampIndex++;
-                if(currentTimestampIndex >= availableTimestamps.length) currentTimestampIndex = 0;
-                document.getElementById('radar-slider').value = currentTimestampIndex;
-                showFrame(currentTimestampIndex);
-            }, 600);
-        }
-        function stop() {
-            clearInterval(animationTimer); animationTimer = null;
-            document.getElementById('radar-play-btn').innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>';
-        }
-        return { init, seek, toggleAnimation };
-    })();
-
-    // HOME WIDGET LOGIC
-    const siWidget = (function(){
-        const towns=[{name:"Nelson",lat:-41.27,lng:173.28},{name:"Blenheim",lat:-41.51,lng:173.96},{name:"Westport",lat:-41.75,lng:171.60},{name:"Greymouth",lat:-42.45,lng:171.20},{name:"Kaikoura",lat:-42.40,lng:173.68},{name:"Christchurch",lat:-43.53,lng:172.63},{name:"Ashburton",lat:-43.90,lng:171.75},{name:"Timaru",lat:-44.39,lng:171.25},{name:"Mt Cook",lat:-43.73,lng:170.10},{name:"Queenstown",lat:-45.03,lng:168.66},{name:"Wanaka",lat:-44.70,lng:169.15},{name:"Alexandra",lat:-45.25,lng:169.38},{name:"Dunedin",lat:-45.87,lng:170.50},{name:"Invercargill",lat:-46.41,lng:168.35},{name:"Stewart Is.",lat:-46.89,lng:168.12}];
-        let map, showDaily=false;
-
-        function init(){
-            const s=document.getElementById('si-town-search'), r=document.getElementById('si-search-results');
-            if(s){
-                s.addEventListener('input',e=>{
-                    const v=e.target.value.toLowerCase();
-                    if(v.length<2){r.style.display='none';return;}
-                    const m=towns.filter(t=>t.name.toLowerCase().includes(v));
-                    r.innerHTML=m.map(t=>`<div class="si-res-item" onclick="siWidget.load('${t.name}')">${t.name}</div>`).join('');
-                    r.style.display=m.length?'block':'none';
-                });
-                setTimeout(initMap,200); updateExtremes();
-            }
-        }
-        function load(n){ const t=towns.find(x=>x.name===n); if(t){ fetchMeteo(t); document.getElementById('si-search-results').style.display='none'; document.getElementById('si-town-search').value=''; } }
-        function initMap(){
-            if(!document.getElementById('si-map')) return;
-            if(!map){
-                map=L.map('si-map',{zoomControl:false}).setView([-43.5,171.5],6);
-                L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
-                towns.forEach(t=>{ L.circleMarker([t.lat,t.lng],{color:'#0ea5e9',fillColor:'#0ea5e9',fillOpacity:0.8,radius:8,weight:2}).addTo(map).on('click',()=>fetchMeteo(t)); });
-            } else setTimeout(()=>map.invalidateSize(),100);
-        }
-        async function fetchMeteo(t){
-            const u=`https://api.open-meteo.com/v1/forecast?latitude=${t.lat}&longitude=${t.lng}&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,wind_direction_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,uv_index_max,wind_speed_10m_max&hourly=wind_direction_10m&timezone=Pacific%2FAuckland`;
+        // INITIALIZATION
+        window.onload = function() {
+            log("Window Loaded.");
+            
             try {
-                const r=await fetch(u); const d=await r.json();
-                document.getElementById('fm-town').innerText=t.name;
-                let h=`<div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;border-bottom:1px solid #eee;padding-bottom:20px;"><div style="font-size:3rem;font-weight:800;">${Math.round(d.current.temperature_2m)}°</div><div style="font-size:0.9rem; line-height:1.4;">Feels Like: <strong>${Math.round(d.current.apparent_temperature)}°</strong><br>Humidity: <strong>${d.current.relative_humidity_2m}%</strong><br>Wind: <strong>${deg(d.current.wind_direction_10m)} ${Math.round(d.current.wind_speed_10m)}kph</strong></div></div><h4>5-Day Forecast</h4>`;
-                d.daily.time.slice(0,5).forEach((day,i)=>{ const idxPm=i*24+15; const wPm=d.hourly.wind_direction_10m[idxPm]; const pop=d.daily.precipitation_probability_max[i], mm=d.daily.precipitation_sum[i]; let range = "0mm"; if(mm > 0.1) range="<1mm"; if(mm > 1) range="1-5mm"; if(mm > 5) range="5-10mm"; if(mm > 10) range="10mm+"; h+=`<div class="fc-detail-row"><div><strong>${new Date(day).toLocaleDateString('en-NZ',{weekday:'short'})}</strong></div><div class="fc-detail-data"><div class="fc-data-point">🌡️ H:${Math.round(d.daily.temperature_2m_max[i])}° L:${Math.round(d.daily.temperature_2m_min[i])}°</div><div class="fc-data-point">🌧️ ${pop}% (${range})</div><div class="fc-data-point">💨 ${deg(wPm)} ${Math.round(d.daily.wind_speed_10m_max[i])}kph</div><div class="fc-data-point">☀️ UV:${d.daily.uv_index_max[i].toFixed(0)}</div></div></div>`; });
-                document.getElementById('fm-content').innerHTML=h; document.getElementById('fc-modal-overlay').style.display='flex';
-            }catch(e){}
+                // 1. CREATE MAP
+                map = L.map('map', {
+                    zoomControl: false,
+                    center: [-41.2865, 174.7762], // NZ
+                    zoom: 6
+                });
+                
+                L.control.zoom({ position: 'topright' }).addTo(map);
+                log("Map Container Created.");
+
+                // 2. LOAD SATELLITE (DEFAULT)
+                addSatellite();
+
+            } catch(e) {
+                log("CRITICAL ERROR: " + e.message);
+                alert("Map failed to load. Check console.");
+            }
+        };
+
+        function addSatellite() {
+            log("Loading Satellite Layer...");
+            try {
+                // Esri World Imagery
+                layers['sat'] = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    attribution: 'Tiles &copy; Esri',
+                    maxZoom: 19,
+                    zIndex: 1
+                }).addTo(map);
+                
+                // Labels on top
+                layers['labels'] = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+                    subdomains: 'abcd',
+                    maxZoom: 19,
+                    zIndex: 2
+                }).addTo(map);
+
+                log("Satellite Layer Added.");
+            } catch(e) {
+                log("Sat Error: " + e.message);
+            }
         }
-        
-        // --- OPTIMIZATION: PARALLEL FETCH FOR EXTREMES ---
-        async function updateExtremes(){
-            let mx=-100, mn=100, wg=0, rn=0, lmx='', lmn='', lwg='', lrn='';
+
+        function addRadar() {
+            log("Attempting to connect to RainViewer...");
             
-            // Create array of promises to fetch all data at once
-            const promises = towns.map(async (t) => {
-                try {
-                    const u = showDaily ? 
-                        `https://api.open-meteo.com/v1/forecast?latitude=${t.lat}&longitude=${t.lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max&timezone=Pacific%2FAuckland` : 
-                        `https://api.open-meteo.com/v1/forecast?latitude=${t.lat}&longitude=${t.lng}&current=temperature_2m,rain,wind_gusts_10m&timezone=Pacific%2FAuckland`;
-                    const r = await fetch(u);
-                    const d = await r.json();
-                    return { t, d };
-                } catch(e) { return null; }
-            });
+            // Check for file protocol
+            if (window.location.protocol === 'file:') {
+                log("WARNING: You are opening this as a local file.");
+                log("Browsers often block Radar data in file:// mode.");
+            }
 
-            // Wait for all requests to finish
-            const results = await Promise.all(promises);
-
-            // Process results
-            results.forEach(item => {
-                if(!item || !item.d) return;
-                const { t, d } = item;
-                if(showDaily){ 
-                    if(d.daily.temperature_2m_max[0]>mx){mx=d.daily.temperature_2m_max[0];lmx=t.name;} 
-                    if(d.daily.temperature_2m_min[0]<mn){mn=d.daily.temperature_2m_min[0];lmn=t.name;} 
-                    if(d.daily.wind_gusts_10m_max[0]>wg){wg=d.daily.wind_gusts_10m_max[0];lwg=t.name;} 
-                    if(d.daily.precipitation_sum[0]>rn){rn=d.daily.precipitation_sum[0];lrn=t.name;} 
-                } else { 
-                    if(d.current.temperature_2m>mx){mx=d.current.temperature_2m;lmx=t.name;} 
-                    if(d.current.temperature_2m<mn){mn=d.current.temperature_2m;lmn=t.name;} 
-                    if(d.current.wind_gusts_10m>wg){wg=d.current.wind_gusts_10m;lwg=t.name;} 
-                    if(d.current.rain>rn){rn=d.current.rain;lrn=t.name;} 
-                }
-            });
-
-            document.getElementById('ex-max').innerText=mx.toFixed(1)+'°'; document.getElementById('ex-max-loc').innerText=lmx; 
-            document.getElementById('ex-min').innerText=mn.toFixed(1)+'°'; document.getElementById('ex-min-loc').innerText=lmn; 
-            document.getElementById('ex-wind').innerText=wg.toFixed(0)+' kph'; document.getElementById('ex-wind-loc').innerText=lwg; 
-            document.getElementById('ex-rain').innerText=rn.toFixed(1)+' mm'; document.getElementById('ex-rain-loc').innerText=lrn;
+            // Fetch timestamp
+            fetch('https://api.rainviewer.com/public/weather-maps.json')
+                .then(response => {
+                    if (!response.ok) throw new Error("Network response was not ok");
+                    return response.json();
+                })
+                .then(data => {
+                    log("RainViewer Data Received.");
+                    var past = data.radar.past;
+                    var path = past[past.length - 1].path;
+                    
+                    // Add Layer
+                    if (layers['radar']) map.removeLayer(layers['radar']);
+                    
+                    layers['radar'] = L.tileLayer('https://tile.cache.rainviewer.com' + path + '/256/{z}/{x}/{y}/2/1_1.png', {
+                        opacity: 0.8,
+                        zIndex: 10
+                    }).addTo(map);
+                    
+                    log("Radar Overlay Active.");
+                })
+                .catch(error => {
+                    log("RADAR FAILED: " + error.message);
+                    log("Try disabling ad-blockers or using a local server.");
+                    document.getElementById('t-radar').checked = false;
+                    alert("Radar failed to load. See bottom-left console for details.");
+                });
         }
 
-        function deg(n){ const v=Math.floor((n/22.5)+0.5); return ["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"][v%16]; }
-        function switchExt(m,b){ document.querySelectorAll('.ext-tab').forEach(x=>x.classList.remove('active')); b.classList.add('active'); showDaily=(m==='day'); updateExtremes(); }
-        return {init,load,initMap,switchExt};
-    })();
+        function toggleLayer(type) {
+            if (type === 'sat') {
+                var on = document.getElementById('t-sat').checked;
+                if (on) {
+                    if (!layers['sat']) addSatellite();
+                    else { map.addLayer(layers['sat']); map.addLayer(layers['labels']); }
+                    log("Satellite ON");
+                } else {
+                    if (layers['sat']) map.removeLayer(layers['sat']);
+                    if (layers['labels']) map.removeLayer(layers['labels']);
+                    log("Satellite OFF");
+                }
+            }
 
-    app.init();
-</script>
+            if (type === 'radar') {
+                var on = document.getElementById('t-radar').checked;
+                if (on) {
+                    addRadar();
+                } else {
+                    if (layers['radar']) map.removeLayer(layers['radar']);
+                    log("Radar OFF");
+                }
+            }
+        }
+
+        function exportMap() {
+            log("Starting Export...");
+            document.body.classList.add('exporting');
+            
+            html2canvas(document.body, {
+                useCORS: true, 
+                allowTaint: true 
+            }).then(canvas => {
+                var link = document.createElement('a');
+                link.download = 'SIMA_Image.png';
+                link.href = canvas.toDataURL();
+                link.click();
+                document.body.classList.remove('exporting');
+                log("Export Complete.");
+            }).catch(e => {
+                log("Export Failed: " + e.message);
+                document.body.classList.remove('exporting');
+                alert("Screenshot failed due to browser security.");
+            });
+        }
+
+    </script>
 </body>
 </html>
