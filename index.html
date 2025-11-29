@@ -1,283 +1,283 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SIMA | Global Cloud & Radar</title>
-    
-    <!-- LEAFLET MAP -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    
-    <!-- SCREENSHOT TOOL -->
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-
-    <!-- FONTS -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
-
+    <title>SIMA Weather Image Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,700;1,700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        /* CORE RESET */
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #050505; font-family: 'Inter', sans-serif; overflow: hidden; }
-        
-        #map { width: 100%; height: 100%; z-index: 1; background: #0a0a0a; }
-
-        /* FLOATING PANEL */
-        .panel {
-            position: absolute; top: 20px; left: 20px; width: 300px;
-            background: rgba(15, 15, 15, 0.9);
-            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 14px; padding: 20px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-            z-index: 1000; color: white; display: flex; flex-direction: column; gap: 15px;
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
         }
-
-        .header { border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; }
-        .logo { font-weight: 800; font-size: 1.2rem; letter-spacing: -0.5px; color: #fff; }
-        .logo span { color: #3b82f6; }
-        .subtitle { font-size: 0.75rem; color: #9ca3af; margin-top: 4px; }
-
-        /* CONTROLS */
-        .control-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-        .c-label { font-size: 0.9rem; font-weight: 600; }
-        .c-sub { font-size: 0.7rem; color: #6b7280; display: block; }
-        .c-status { font-size: 0.65rem; font-family: monospace; color: #34d399; text-align: right; }
-
-        /* TOGGLE SWITCH */
-        .toggle { position: relative; width: 42px; height: 22px; }
-        .toggle input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .3s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
-        input:checked + .slider { background-color: #3b82f6; }
-        input:checked + .slider:before { transform: translateX(20px); }
-
-        /* JUMP BUTTONS */
-        .jump-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
-        .jump-btn {
-            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-            color: #ccc; padding: 8px; border-radius: 6px; font-size: 0.7rem; cursor: pointer;
-            text-align: center; transition: 0.2s;
+        .preview-container {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
         }
-        .jump-btn:hover { background: rgba(255,255,255,0.15); color: white; }
-
-        /* MAIN BUTTON */
-        .dl-btn {
-            background: #2563eb; color: white; border: none; padding: 12px;
-            border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%;
-            margin-top: 10px; font-size: 0.9rem;
+        .headline-font {
+            font-family: 'Playfair Display', serif;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
-        .dl-btn:hover { background: #1d4ed8; }
-
-        /* BRANDING (EXPORT ONLY) */
-        #export-brand {
-            display: none; position: absolute; bottom: 30px; right: 30px; z-index: 9999;
-            background: white; color: black; padding: 12px 24px; border-radius: 8px;
-            text-align: right; pointer-events: none;
+        /* Custom scrollbar for the controls */
+        ::-webkit-scrollbar {
+            width: 8px;
         }
-        .b-main { font-weight: 900; font-size: 1.5rem; }
-        .b-main span { color: #2563eb; }
-
-        body.exporting .panel, body.exporting .leaflet-control-zoom { display: none !important; }
-        body.exporting #export-brand { display: block !important; }
-
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c1c1c1; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8; 
+        }
+        .logo-placeholder svg {
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));
+        }
     </style>
 </head>
-<body>
+<body class="h-screen flex flex-col lg:flex-row overflow-hidden">
 
-    <!-- MAP -->
-    <div id="map"></div>
-
-    <!-- UI PANEL -->
-    <div class="panel">
-        <div class="header">
-            <div class="logo">SIMA<span>.co.nz</span></div>
-            <div class="subtitle">Global Satellite & Radar System</div>
+    <!-- Left Panel: Controls -->
+    <div class="w-full lg:w-1/3 bg-white border-r border-gray-200 flex flex-col h-full z-10">
+        <div class="p-6 border-b border-gray-100 bg-slate-900 text-white">
+            <h1 class="text-xl font-bold flex items-center gap-2">
+                <i data-lucide="cloud-rain" class="w-6 h-6 text-blue-400"></i>
+                SIMA Image Builder
+            </h1>
+            <p class="text-sm text-slate-400 mt-1">Create engaging weather updates.</p>
         </div>
 
-        <!-- SATELLITE TOGGLE -->
-        <div class="control-row">
-            <div>
-                <span class="c-label">Cloud Cover</span>
-                <span class="c-sub">Infrared Satellite</span>
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+            
+            <!-- Background Image Control -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">1. Weather Map / Background</label>
+                <div class="relative group">
+                    <input type="file" id="bgInput" accept="image/*" class="hidden" onchange="handleBgUpload(event)">
+                    <button onclick="document.getElementById('bgInput').click()" class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-500 hover:border-blue-500 hover:text-blue-500 transition-colors bg-gray-50">
+                        <i data-lucide="image-plus" class="w-8 h-8 mb-2"></i>
+                        <span class="text-xs">Click to upload map</span>
+                    </button>
+                    <div id="bgPreviewName" class="text-xs text-green-600 mt-1 hidden font-medium">Image loaded!</div>
+                </div>
             </div>
-            <label class="toggle">
-                <input type="checkbox" id="sat-check" checked onchange="toggleLayer('sat')">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="c-status" id="sat-time">Loading...</div>
 
-        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 10px 0;">
-
-        <!-- RADAR TOGGLE -->
-        <div class="control-row">
-            <div>
-                <span class="c-label">Precipitation</span>
-                <span class="c-sub">Worldwide Radar</span>
+            <!-- Headline Control -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">2. Headline Text</label>
+                <textarea id="headlineInput" rows="3" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition shadow-sm resize-none" placeholder="Enter your weather headline here..." oninput="updateHeadline(this.value)">Deep and Intense Low Pressure System to bring Heavy rain on Wednesday</textarea>
+                <p class="text-xs text-gray-500">Tip: Keep it punchy. Use new lines for better layout.</p>
             </div>
-            <label class="toggle">
-                <input type="checkbox" id="rad-check" checked onchange="toggleLayer('rad')">
-                <span class="slider"></span>
-            </label>
-        </div>
-        <div class="c-status" id="rad-time">Loading...</div>
 
-        <!-- JUMP BUTTONS -->
-        <div style="font-size:0.7rem; color:#888; margin-top:15px; font-weight:600;">VERIFY DATA (JUMP TO)</div>
-        <div class="jump-grid">
-            <button class="jump-btn" onclick="jumpTo(-41.2, 174.7, 6)">N. Zealand</button>
-            <button class="jump-btn" onclick="jumpTo(-25.2, 133.7, 4)">Australia</button>
-            <button class="jump-btn" onclick="jumpTo(48.8, 2.3, 5)">Europe</button>
+            <!-- Logo Control -->
+            <div class="space-y-2">
+                <label class="block text-sm font-medium text-gray-700">3. Logo (Optional)</label>
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 border border-gray-200 rounded-full overflow-hidden flex items-center justify-center bg-gray-50 shrink-0">
+                        <img id="logoPreviewUi" src="" class="w-full h-full object-contain hidden">
+                        <i data-lucide="upload" id="logoUploadIcon" class="w-4 h-4 text-gray-400"></i>
+                    </div>
+                    <div class="flex-1">
+                        <input type="file" id="logoInput" accept="image/*" class="hidden" onchange="handleLogoUpload(event)">
+                        <button onclick="document.getElementById('logoInput').click()" class="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-md transition-colors w-full">
+                            Upload Logo
+                        </button>
+                        <p class="text-[10px] text-gray-400 mt-1">Upload your SIMA logo here.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <hr class="border-gray-100">
+
+            <!-- Footer Text Controls (Advanced) -->
+             <details class="group">
+                <summary class="flex justify-between items-center font-medium cursor-pointer list-none text-sm text-gray-700">
+                    <span>Advanced Footer Text</span>
+                    <span class="transition group-open:rotate-180">
+                        <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                    </span>
+                </summary>
+                <div class="text-gray-500 text-sm mt-3 space-y-3 group-open:animate-fadeIn">
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Company Name Line 1</label>
+                        <input type="text" id="companyName1Input" value="South Island" class="w-full p-2 border border-gray-200 rounded text-xs" oninput="updateFooter()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Company Name Line 2</label>
+                        <input type="text" id="companyName2Input" value="Met Agency" class="w-full p-2 border border-gray-200 rounded text-xs" oninput="updateFooter()">
+                    </div>
+                </div>
+            </details>
+
         </div>
 
-        <button class="dl-btn" onclick="snapshot()">Download Map</button>
+        <div class="p-6 border-t border-gray-200 bg-gray-50">
+            <button onclick="downloadImage()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md transition transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+                <i data-lucide="download" class="w-5 h-5"></i>
+                Download Image
+            </button>
+        </div>
     </div>
 
-    <!-- BRANDING -->
-    <div id="export-brand">
-        <div class="b-main">SIMA<span>.co.nz</span></div>
-        <div style="font-size:0.8rem; font-weight:600;">Live Weather Intelligence</div>
+    <!-- Right Panel: Preview -->
+    <div class="w-full lg:w-2/3 bg-gray-200 flex items-center justify-center p-4 lg:p-10 overflow-auto relative">
+        
+        <!-- Canvas/Card Area -->
+        <!-- Aspect Ratio 4:5 (Standard Social Portrait) e.g. 1080x1350 -->
+        <!-- We scale it down for preview using CSS transform if needed, but here we'll use a fixed width container that fits -->
+        <div id="captureArea" class="preview-container relative bg-white overflow-hidden shrink-0 select-none" style="width: 540px; height: 675px;">
+            
+            <!-- Background Image -->
+            <div class="absolute inset-0 bg-gray-300">
+                <img id="previewBg" src="https://images.unsplash.com/photo-1599295553676-e910fa78122d?q=80&w=2070&auto=format&fit=crop" class="w-full h-full object-cover" alt="Weather Background">
+            </div>
+
+            <!-- Dark Overlay Gradient -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent flex flex-col justify-end pb-[110px]">
+                <!-- Headline -->
+                <div class="px-8 mb-6">
+                    <h1 id="previewHeadline" class="headline-font text-white text-4xl leading-tight font-bold tracking-tight">
+                        Deep and Intense Low<br>Pressure System to bring<br>Heavy rain on Wednesday
+                    </h1>
+                </div>
+            </div>
+
+            <!-- Footer Strip -->
+            <div class="absolute bottom-0 left-0 w-full h-[100px] bg-white flex items-center justify-between px-6 z-20">
+                
+                <!-- Left: CTA -->
+                <div class="flex flex-col justify-center">
+                    <span class="text-[#0088cc] font-bold text-lg leading-tight">Click the link</span>
+                    <span class="text-gray-800 font-medium text-md leading-tight">in the comments for more</span>
+                </div>
+
+                <!-- Right: Branding -->
+                <div class="flex items-center gap-3">
+                    <!-- Logo Container -->
+                    <div class="w-10 h-10 relative flex items-center justify-center">
+                         <img id="previewLogo" src="" class="w-full h-full object-contain hidden" alt="Logo">
+                         <!-- Fallback built-in SVG logo if no upload -->
+                         <div id="defaultLogo" class="logo-placeholder">
+                            <svg width="40" height="40" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="50" cy="50" r="48" fill="#1e5f8a"/>
+                                <path d="M50 10 C 50 10, 85 40, 85 65 C 85 85, 65 95, 50 95 C 35 95, 15 85, 15 65 C 15 40, 50 10, 50 10" fill="white" transform="translate(0, 5) scale(0.6)"/>
+                                <path d="M50 0 C 50 0, 70 20, 70 40 C 70 60, 30 60, 30 40 C 30 20, 50 0, 50 0" fill="#29b6f6" transform="translate(15, -5) scale(0.3)"/>
+                            </svg>
+                         </div>
+                    </div>
+
+                    <!-- Company Name -->
+                    <div class="flex flex-col items-start leading-none">
+                        <span id="previewCompany1" class="text-black font-bold text-lg tracking-tight">South Island</span>
+                        <span id="previewCompany2" class="text-[#0088cc] font-medium text-sm tracking-wide uppercase">Met Agency</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Top bar accent (optional aesthetic touch from reference) -->
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-cyan-400 z-30"></div>
+
+        </div>
     </div>
+
+    <!-- Hidden canvas for export -->
+    <div id="output" class="hidden"></div>
 
     <script>
-        // --- VARIABLES ---
-        let map;
-        let layers = {
-            base: null,
-            labels: null,
-            satellite: null, // Clouds
-            radar: null      // Rain
-        };
-        let apiData = null; // Store RainViewer JSON
+        // Initialize Icons
+        lucide.createIcons();
 
-        // --- INIT ---
-        window.onload = function() {
-            initMap();
-            loadRainViewerData(); // This drives both Sat and Radar
-        };
+        // Elements
+        const bgInput = document.getElementById('bgInput');
+        const previewBg = document.getElementById('previewBg');
+        const headlineInput = document.getElementById('headlineInput');
+        const previewHeadline = document.getElementById('previewHeadline');
+        const logoInput = document.getElementById('logoInput');
+        const previewLogo = document.getElementById('previewLogo');
+        const logoPreviewUi = document.getElementById('logoPreviewUi');
+        const defaultLogo = document.getElementById('defaultLogo');
+        const logoUploadIcon = document.getElementById('logoUploadIcon');
+        const captureArea = document.getElementById('captureArea');
 
-        function initMap() {
-            // Dark map to make white clouds pop
-            map = L.map('map', { zoomControl: false }).setView([-41.2865, 174.7762], 6);
-            L.control.zoom({ position: 'topright' }).addTo(map);
-
-            // 1. BASE LAYER (Dark Matter)
-            layers.base = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-                attribution: '© OpenStreetMap, © CARTO',
-                subdomains: 'abcd',
-                maxZoom: 19,
-                zIndex: 0
-            }).addTo(map);
-
-            // 2. LABELS (City names on top)
-            layers.labels = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
-                subdomains: 'abcd',
-                maxZoom: 19,
-                zIndex: 100 // Always on top
-            }).addTo(map);
+        // Text Update Function
+        function updateHeadline(text) {
+            // Replace newlines with <br> for HTML rendering
+            previewHeadline.innerHTML = text.replace(/\n/g, '<br>');
         }
 
-        // --- DATA FETCHING ---
-        async function loadRainViewerData() {
-            try {
-                // Fetch configuration
-                const res = await fetch('https://api.rainviewer.com/public/weather-maps.json');
-                if(!res.ok) throw new Error("API Connection Failed");
-                apiData = await res.json();
-                
-                // Initialize Layers
-                if(document.getElementById('sat-check').checked) addSatelliteLayer();
-                if(document.getElementById('rad-check').checked) addRadarLayer();
+        // Footer Update Function
+        function updateFooter() {
+            document.getElementById('previewCompany1').innerText = document.getElementById('companyName1Input').value;
+            document.getElementById('previewCompany2').innerText = document.getElementById('companyName2Input').value;
+        }
 
-            } catch(e) {
-                console.error(e);
-                alert("Could not load weather data. Check internet connection.");
-                document.getElementById('sat-time').innerText = "Connection Error";
-                document.getElementById('rad-time').innerText = "Connection Error";
+        // Handle Background Upload
+        function handleBgUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewBg.src = e.target.result;
+                    document.getElementById('bgPreviewName').classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
             }
         }
 
-        // --- SATELLITE (CLOUDS) ---
-        function addSatelliteLayer() {
-            if (!apiData || !apiData.satellite || !apiData.satellite.infrared) return;
-            
-            // Get latest Infrared Satellite frame
-            const frames = apiData.satellite.infrared;
-            const lastFrame = frames[frames.length - 1]; // Latest
-            
-            // RainViewer Sat URL Pattern: /v2/satellite/{path}/512/{z}/{x}/{y}/0/1_1.png
-            const url = `https://tile.cache.rainviewer.com${lastFrame.path}/512/{z}/{x}/{y}/0/1_1.png`;
-            
-            if (layers.satellite) map.removeLayer(layers.satellite);
-            
-            layers.satellite = L.tileLayer(url, {
-                opacity: 0.75, // Slight transparency to see land borders
-                zIndex: 10
-            }).addTo(map);
-
-            // Update Status
-            const date = new Date(lastFrame.time * 1000);
-            document.getElementById('sat-time').innerText = "Live: " + date.toLocaleTimeString();
-        }
-
-        // --- RADAR (RAIN) ---
-        function addRadarLayer() {
-            if (!apiData || !apiData.radar || !apiData.radar.past) return;
-
-            // Get latest Radar frame
-            const frames = apiData.radar.past;
-            const lastFrame = frames[frames.length - 1];
-
-            // RainViewer Radar URL Pattern: /v2/radar/{path}/512/{z}/{x}/{y}/2/1_1.png
-            const url = `https://tile.cache.rainviewer.com${lastFrame.path}/512/{z}/{x}/{y}/2/1_1.png`;
-
-            if (layers.radar) map.removeLayer(layers.radar);
-
-            layers.radar = L.tileLayer(url, {
-                opacity: 0.9,
-                zIndex: 20 // Sits above clouds
-            }).addTo(map);
-
-            // Update Status
-            const date = new Date(lastFrame.time * 1000);
-            document.getElementById('rad-time').innerText = "Live: " + date.toLocaleTimeString();
-        }
-
-        // --- CONTROLLER ---
-        function toggleLayer(type) {
-            if(type === 'sat') {
-                const on = document.getElementById('sat-check').checked;
-                if(on) addSatelliteLayer();
-                else if(layers.satellite) map.removeLayer(layers.satellite);
-            }
-            if(type === 'rad') {
-                const on = document.getElementById('rad-check').checked;
-                if(on) addRadarLayer();
-                else if(layers.radar) map.removeLayer(layers.radar);
+        // Handle Logo Upload
+        function handleLogoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Update main preview
+                    previewLogo.src = e.target.result;
+                    previewLogo.classList.remove('hidden');
+                    defaultLogo.classList.add('hidden');
+                    
+                    // Update UI preview
+                    logoPreviewUi.src = e.target.result;
+                    logoPreviewUi.classList.remove('hidden');
+                    logoUploadIcon.classList.add('hidden');
+                }
+                reader.readAsDataURL(file);
             }
         }
 
-        function jumpTo(lat, lon, zoom) {
-            map.flyTo([lat, lon], zoom, { duration: 1.5 });
-        }
+        // Download Function
+        function downloadImage() {
+            // Show loading state could go here
+            const btn = document.querySelector('button[onclick="downloadImage()"]');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Generating...`;
+            lucide.createIcons();
 
-        // --- SNAPSHOT ---
-        function snapshot() {
-            document.body.classList.add('exporting');
+            // We need to temporarily set the transform to none to ensure accurate capture if we were scaling, 
+            // but since we used fixed pixel width for preview, we just capture it directly.
             
-            html2canvas(document.body, {
-                useCORS: true,
-                allowTaint: true,
+            html2canvas(captureArea, {
+                scale: 2, // High resolution
+                useCORS: true, // Attempt to handle cross-origin images
                 backgroundColor: null
             }).then(canvas => {
                 const link = document.createElement('a');
-                link.download = `SIMA_Global_${Date.now()}.png`;
-                link.href = canvas.toDataURL();
+                // Format date for filename
+                const date = new Date().toISOString().split('T')[0];
+                link.download = `SIMA-Update-${date}.png`;
+                link.href = canvas.toDataURL('image/png');
                 link.click();
-                document.body.classList.remove('exporting');
-            }).catch(e => {
-                alert("Browser Security prevented the download. Please screenshot manually.");
-                document.body.classList.remove('exporting');
+                
+                // Reset button
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }).catch(err => {
+                console.error(err);
+                alert("There was an error generating the image. If using external images, this might be due to security restrictions.");
+                btn.innerHTML = originalText;
+                lucide.createIcons();
             });
         }
     </script>
